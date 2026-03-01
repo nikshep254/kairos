@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Left</title>
+<style>
+/* ── SF Pro system font stack ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sf: -apple-system,'SF Pro Display','SF Pro Text',BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;
+  --sf-mono: 'SF Mono','Menlo','Monaco','Courier New',monospace;
+  --bg:#08080b;
+  --surface:#111115;
+  --surface2:#1a1a20;
+  --border:rgba(255,255,255,0.1);
+  --border2:rgba(255,255,255,0.18);
+  --text:#ffffff;
+  --text2:rgba(255,255,255,0.82);
+  --muted:rgba(255,255,255,0.55);
+  --dim:rgba(255,255,255,0.35);
+  --gold:#d4a853;
+  --radius:18px;
+}
+
+html,body{
+  min-height:100vh;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sf);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body{
+  background-image:
+    radial-gradient(ellipse 65% 45% at 12% 8%, rgba(212,168,83,0.09) 0%,transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 92%, rgba(80,110,210,0.06) 0%,transparent 55%);
+}
+
+/* ══════════════════════════════════════
+   ONBOARDING OVERLAY
+══════════════════════════════════════ */
+#onboarding{
+  position:fixed;inset:0;z-index:99999;
+  background:#08080b;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:24px;
+  transition:opacity 0.6s ease;
+}
+#onboarding.fade-out{opacity:0;pointer-events:none}
+
+.ob-progress{
+  display:flex;gap:6px;margin-bottom:32px;
+}
+.ob-dot{
+  width:28px;height:3px;border-radius:2px;
+  background:rgba(255,255,255,0.12);
+  transition:background 0.4s,width 0.4s;
+}
+.ob-dot.active{background:var(--gold);width:44px;}
+.ob-dot.done{background:rgba(255,255,255,0.35);}
+
+.ob-card{
+  width:min(560px,100%);
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:24px;
+  overflow:hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.8),
+    0 24px 80px rgba(0,0,0,0.7),
+    0 4px 20px rgba(0,0,0,0.5);
+  position:relative;
+}
+.ob-card::after{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:80px;
+  background:linear-gradient(to top, color-mix(in srgb, var(--oc,#d4a853) 12%, transparent), transparent);
+  pointer-events:none;
+}
+.ob-card-mac{
+  display:flex;align-items:center;gap:7px;
+  padding:14px 16px 0;
+}
+.ob-mac-btn{
+  width:13px;height:13px;border-radius:50%;
+  border:none;cursor:default;
+}
+.omb-red{background:#ff5f57}
+.omb-yel{background:#febc2e}
+.omb-grn{background:#28c840}
+
+.ob-card-inner{padding:18px 22px 22px;}
+.ob-card-tag{
+  font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--oc,#d4a853);margin-bottom:14px;
+  display:flex;align-items:center;gap:7px;
+}
+.ob-card-tag::before{
+  content:'';width:16px;height:1px;
+  background:var(--oc,#d4a853);opacity:0.5;
+}
+
+.ob-headline{
+  font-size:clamp(1.6rem, 5vw, 2.4rem);
+  font-weight:700;
+  letter-spacing:-0.03em;
+  line-height:1.1;
+  color:var(--text);
+  min-height:3em;
+  margin-bottom:14px;
+}
+.ob-headline .cursor{
+  display:inline-block;width:2px;height:1em;
+  background:var(--oc,#d4a853);
+  vertical-align:text-bottom;
+  animation:blink 0.7s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+.ob-body{
+  font-size:0.9rem;font-weight:400;line-height:1.65;
+  color:var(--text2);
+  min-height:4.5em;
+  margin-bottom:20px;
+}
+.ob-body .cursor{
+  display:inline-block;width:1.5px;height:0.85em;
+  background:rgba(255,255,255,0.6);
+  vertical-align:text-bottom;
+  animation:blink 0.7s step-end infinite;
+}
+
+.ob-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:16px;
+  border-top:1px solid var(--border);
+}
+.ob-step{
+  font-size:11px;font-weight:600;letter-spacing:0.12em;
+  color:var(--dim);text-transform:uppercase;
+}
+.ob-next{
+  display:flex;align-items:center;gap:7px;
+  background:var(--oc,#d4a853);
+  border:none;border-radius:10px;
+  padding:9px 18px;cursor:pointer;
+  font-family:var(--sf);font-size:13px;font-weight:700;
+  color:#000;
+  transition:opacity 0.2s,transform 0.2s,filter 0.2s;
+  opacity:0;pointer-events:none;
+}
+.ob-next.ready{opacity:1;pointer-events:all}
+.ob-next:hover{filter:brightness(1.1);transform:scale(1.03)}
+.ob-next.last{background:var(--oc,#d4a853)}
+
+/* ══════════════════════════════════════
+   HEADER ROW
+══════════════════════════════════════ */
+.header-row{
+  position:fixed;top:16px;left:0;right:0;z-index:5000;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 20px;
+  pointer-events:none;
+}
+
+/* Dynamic Island */
+.di-wrap{
+  pointer-events:all;
+  position:relative;
+}
+.di{
+  display:flex;align-items:center;
+  background:rgba(4,4,6,0.94);
+  backdrop-filter:blur(48px) saturate(220%);
+  -webkit-backdrop-filter:blur(48px) saturate(220%);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:60px;
+  padding:0 8px;
+  height:46px;min-width:260px;
+  cursor:pointer;
+  box-shadow:
+    0 0 0 0.5px rgba(0,0,0,1),
+    0 14px 50px rgba(0,0,0,0.8),
+    0 4px 12px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.6);
+  overflow:hidden;
+  transition:
+    min-width .55s cubic-bezier(.34,1.3,.64,1),
+    height .55s cubic-bezier(.34,1.3,.64,1),
+    border-radius .45s ease,
+    padding .45s ease;
+  position:relative;
+}
+.di::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(150deg,rgba(255,255,255,0.07) 0%,transparent 40%);
+  pointer-events:none;border-radius:inherit;
+}
+.di::after{
+  content:'';position:absolute;
+  bottom:0;left:20%;right:20%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(212,168,83,0.4),transparent);
+}
+.di-pill{display:flex;align-items:center;gap:10px;padding:0 12px;width:100%;white-space:nowrap;}
+.di-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  background:var(--gold);
+  box-shadow:0 0 10px var(--gold),0 0 22px rgba(212,168,83,0.4);
+  animation:gpulse 2.5s ease-in-out infinite;
+}
+@keyframes gpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.72)}}
+.di-title{
+  font-size:15px;font-weight:700;letter-spacing:-0.02em;
+  color:var(--text);flex:1;
+}
+.di-clock{
+  font-family:var(--sf-mono);font-size:12px;
+  color:var(--muted);letter-spacing:0.04em;
+  font-variant-numeric:tabular-nums;
+  border-left:1px solid rgba(255,255,255,0.12);
+  padding-left:10px;
+}
+.di-hint{font-size:10px;color:var(--dim);padding-left:4px;}
+
+/* Expanded DI */
+.di.open{
+  min-width:min(380px,90vw);
+  height:auto;border-radius:28px;
+  padding:18px 20px 20px;cursor:default;
+}
+.di.open .di-pill{display:none}
+.di-body{display:none;width:100%;}
+.di.open .di-body{display:block}
+.di-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.di-logo{
+  display:flex;align-items:center;gap:8px;
+  font-size:16px;font-weight:700;letter-spacing:-0.02em;color:var(--text);
+}
+.di-dot-lg{
+  width:10px;height:10px;border-radius:50%;background:var(--gold);flex-shrink:0;
+  box-shadow:0 0 12px var(--gold);animation:gpulse 2.5s ease-in-out infinite;
+}
+.di-x{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);
+  cursor:pointer;font-size:11px;color:var(--muted);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,color .2s;
+}
+.di-x:hover{background:rgba(255,70,70,0.2);color:#ff8080;}
+.di-fulltime{
+  font-family:var(--sf-mono);font-size:12px;color:var(--muted);
+  text-align:center;padding:10px 0;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  margin-bottom:14px;font-variant-numeric:tabular-nums;
+}
+.di-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.di-btn{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:10px;padding:9px 11px;cursor:pointer;
+  font-family:var(--sf);font-size:12px;font-weight:600;
+  color:var(--muted);transition:all 0.18s;
+}
+.di-btn:hover{background:rgba(255,255,255,0.1);color:var(--text);border-color:var(--border2)}
+.di-btn .ic{font-size:13px}
+.di-btn-wide{
+  grid-column:span 2;justify-content:center;
+  background:linear-gradient(135deg,rgba(212,168,83,0.16),rgba(212,168,83,0.07));
+  border-color:rgba(212,168,83,0.3);color:var(--gold);font-size:13px;
+}
+.di-btn-wide:hover{background:rgba(212,168,83,0.24);border-color:rgba(212,168,83,0.45);color:#f0c96e}
+
+/* Builder card — top right */
+.builder-card{
+  position:fixed;top:16px;right:20px;z-index:5000;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(4,4,6,0.88);
+  backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px;padding:8px 14px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.07);
+  pointer-events:all;
+  cursor:default;
+}
+.builder-avatar{
+  width:26px;height:26px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),#ff9f5a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#000;flex-shrink:0;
+}
+.builder-text{}
+.builder-name{
+  font-size:12px;font-weight:700;color:var(--text);letter-spacing:-0.01em;
+  line-height:1.2;
+}
+.builder-role{
+  font-size:10px;color:var(--dim);font-weight:500;letter-spacing:0.04em;
+  text-transform:uppercase;
+}
+
+/* ══════════════════════════════════════
+   MAIN PAGE
+══════════════════════════════════════ */
+.page{
+  max-width:1000px;margin:0 auto;
+  padding:82px 18px 56px;
+}
+
+.bento{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  gap:11px;
+}
+
+/* ══════════════════════════════════════
+   CARD
+══════════════════════════════════════ */
+.card{
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  min-height:210px;
+  transition:border-color 0.25s, min-height 0.35s ease, opacity 0.3s, transform 0.3s;
+}
+.card:hover{border-color:rgba(255,255,255,0.16)}
+
+.card::after{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:60px;
+  background:linear-gradient(to top,color-mix(in srgb,var(--c1,#d4a853) 12%,transparent),transparent);
+  pointer-events:none;z-index:0;
+}
+.card.min .card-body,.card.min .card-quote,.card.min .card-track,.card.min .card-pills{display:none!important}
+.card.min{min-height:0;}
+
+.s4{grid-column:span 4}
+.s6{grid-column:span 6}
+.s12{grid-column:span 12}
+
+/* macOS traffic lights */
+.mac{
+  display:flex;align-items:center;gap:6px;
+  padding:12px 12px 0;position:relative;z-index:2;
+}
+.mac-btn{
+  width:13px;height:13px;border-radius:50%;border:none;cursor:pointer;
+  flex-shrink:0;position:relative;
+  transition:filter 0.15s,transform 0.15s;
+}
+.mac-btn:hover{filter:brightness(1.35);transform:scale(1.1)}
+.mac-btn::after{
+  content:attr(data-s);
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:7px;font-weight:900;color:rgba(0,0,0,0.6);
+  opacity:0;transition:opacity 0.15s;
+}
+.mac-btn:hover::after{opacity:1}
+.mb-del{background:#ff5f57}
+.mb-min{background:#febc2e}
+.mb-exp{background:#28c840}
+
+.card-inner{
+  padding:11px 14px 14px;
+  position:relative;z-index:1;
+  flex:1;display:flex;flex-direction:column;
+}
+.card-label{
+  font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--muted);font-weight:700;
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:10px;
+}
+.card-icon{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  background:color-mix(in srgb,var(--c1,#d4a853) 22%,transparent);
+}
+
+.pct-row{display:flex;align-items:baseline;gap:2px;line-height:1;}
+.pct-num{
+  font-size:clamp(2.6rem,5vw,3.1rem);font-weight:700;
+  color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-0.04em;
+}
+.pct-sym{
+  font-size:1.25rem;font-weight:600;color:var(--muted);
+  margin-top:0.3em;align-self:flex-start;
+}
+.pct-sub{
+  font-size:10px;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--dim);margin-top:4px;
+}
+.card-detail{
+  margin-top:6px;font-family:var(--sf-mono);
+  font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;
+  line-height:1.5;
+}
+
+/* Quote */
+.card-quote{
+  margin-top:auto;padding-top:10px;
+  border-top:1px solid var(--border);
+  font-size:12px;font-style:italic;font-weight:400;
+  color:var(--muted);line-height:1.55;
+  position:relative;z-index:1;
+}
+.card-quote .q-attr{
+  color:color-mix(in srgb,var(--c1,#d4a853) 90%,transparent);
+  font-style:normal;font-size:10px;
+  font-family:var(--sf);font-weight:700;letter-spacing:0.08em;
+  display:block;margin-top:4px;text-transform:uppercase;
+}
+.card-quote.loading{
+  color:var(--dim);
+  animation:qpulse 1.5s ease-in-out infinite;
+}
+@keyframes qpulse{0%,100%{opacity:0.4}50%{opacity:0.8}}
+
+/* Progress */
+.card-track{height:2px;background:rgba(255,255,255,0.07);margin-top:10px;border-radius:2px;overflow:hidden;position:relative;z-index:1;}
+.card-bar{height:100%;background:linear-gradient(90deg,var(--c1,#d4a853),var(--c2,#f0c97e));transition:width 1s linear;border-radius:2px;}
+
+.card-pills{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;position:relative;z-index:1;}
+.pill{
+  background:rgba(255,255,255,0.07);border-radius:7px;
+  padding:3px 9px;font-size:11px;font-weight:600;
+  color:var(--text2);font-family:var(--sf-mono);font-variant-numeric:tabular-nums;
+}
+.pill b{color:var(--text);font-weight:700}
+
+/* Decade grid */
+.dgrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:9px;position:relative;z-index:1;}
+.d-blk{height:14px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;position:relative;}
+.d-fill{position:absolute;inset:0;background:linear-gradient(90deg,var(--c1),var(--c2));}
+
+/* ══════════════════════════════════════
+   ORIGIN CARD
+══════════════════════════════════════ */
+.origin-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  grid-column:span 12;
+  position:relative;
+  transition:border-color 0.25s;
+}
+.origin-card:hover{border-color:rgba(255,255,255,0.16)}
+.origin-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:60px;
+  background:linear-gradient(to top,rgba(212,168,83,0.1),transparent);pointer-events:none;
+}
+.origin-card.min .origin-inner,.origin-card.min .origin-divider,.origin-card.min .origin-credits-row{display:none!important}
+
+.origin-inner{
+  padding:11px 14px 16px;
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:0 28px;position:relative;z-index:1;
+}
+.origin-left{}
+.origin-right{border-left:1px solid var(--border);padding-left:24px;}
+
+.origin-label{
+  font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--muted);font-weight:700;
+  display:flex;align-items:center;gap:6px;margin-bottom:10px;
+}
+.origin-icon{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  background:rgba(212,168,83,0.2);
+}
+.origin-headline{
+  font-size:clamp(1.6rem,3.5vw,2.3rem);font-weight:700;
+  color:var(--text);line-height:1.05;letter-spacing:-0.03em;margin-bottom:5px;
+}
+.origin-sub{
+  font-size:10px;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:10px;
+}
+.origin-detail{
+  font-family:var(--sf-mono);font-size:11px;
+  color:var(--text2);line-height:1.7;
+}
+.origin-detail em{color:var(--gold);font-style:normal;font-weight:600;}
+.origin-story{
+  font-family:var(--sf-mono);font-size:11px;color:var(--text2);line-height:1.75;
+}
+.origin-story strong{color:var(--gold);font-weight:600;}
+.origin-divider{height:1px;background:var(--border);margin:0 14px;position:relative;z-index:1;}
+.origin-credits-row{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:10px;font-weight:600;letter-spacing:0.1em;
+  color:var(--dim);
+  padding:10px 14px 12px;position:relative;z-index:1;
+}
+.origin-badge{
+  background:rgba(212,168,83,0.12);border:1px solid rgba(212,168,83,0.22);
+  border-radius:6px;padding:2px 10px;color:var(--gold);
+  font-size:10px;font-weight:700;letter-spacing:0.12em;
+}
+
+/* ══════════════════════════════════════
+   MODAL
+══════════════════════════════════════ */
+.backdrop{
+  position:fixed;inset:0;z-index:20000;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.24s;
+}
+.backdrop.open{opacity:1;pointer-events:all}
+.modal{
+  background:#0e0e12;border:1px solid var(--border2);border-radius:24px;
+  padding:28px 24px;width:min(420px,93vw);
+  transform:scale(0.93) translateY(14px);
+  transition:transform 0.32s cubic-bezier(.34,1.4,.64,1);
+  box-shadow:0 40px 90px rgba(0,0,0,0.8);
+}
+.backdrop.open .modal{transform:scale(1) translateY(0)}
+.modal-title{font-size:20px;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.fi{
+  width:100%;background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+  padding:11px 13px;font-size:14px;color:var(--text);
+  font-family:var(--sf);outline:none;transition:border-color 0.2s;
+}
+.fi:focus{border-color:rgba(212,168,83,0.45)}
+.fi::placeholder{color:var(--dim)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;}
+.sw{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .15s,border-color .15s;}
+.sw:hover{transform:scale(1.15)}
+.sw.sel{border-color:#fff;transform:scale(1.2)}
+.modal-acts{display:flex;gap:8px;margin-top:20px}
+.btn-p{
+  flex:1;background:linear-gradient(135deg,rgba(212,168,83,0.22),rgba(212,168,83,0.1));
+  border:1px solid rgba(212,168,83,0.32);border-radius:11px;padding:12px;
+  font-family:var(--sf);font-size:14px;font-weight:700;
+  color:var(--gold);cursor:pointer;transition:all 0.2s;
+}
+.btn-p:hover{background:rgba(212,168,83,0.3);border-color:rgba(212,168,83,0.5)}
+.btn-g{
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:11px;padding:12px 20px;
+  font-family:var(--sf);font-size:14px;font-weight:600;
+  color:var(--muted);cursor:pointer;transition:all 0.2s;
+}
+.btn-g:hover{background:rgba(255,255,255,0.09);color:var(--text)}
+
+@media(max-width:680px){
+  .s4,.s6{grid-column:span 12}
+  .origin-inner{grid-template-columns:1fr}
+  .origin-right{border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:14px;margin-top:10px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ ONBOARDING ══ -->
+<div id="onboarding">
+  <div class="ob-progress">
+    <div class="ob-dot active" id="od0"></div>
+    <div class="ob-dot" id="od1"></div>
+    <div class="ob-dot" id="od2"></div>
+    <div class="ob-dot" id="od3"></div>
+    <div class="ob-dot" id="od4"></div>
+  </div>
+  <div class="ob-card" id="ob-card">
+    <div class="ob-card-mac">
+      <div class="ob-mac-btn omb-red"></div>
+      <div class="ob-mac-btn omb-yel"></div>
+      <div class="ob-mac-btn omb-grn"></div>
+    </div>
+    <div class="ob-card-inner">
+      <div class="ob-card-tag" id="ob-tag"></div>
+      <div class="ob-headline" id="ob-headline"></div>
+      <div class="ob-body" id="ob-body"></div>
+      <div class="ob-footer">
+        <span class="ob-step" id="ob-step"></span>
+        <button class="ob-next" id="ob-next" onclick="obNext()">Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<div class="header-row">
+  <div class="di-wrap">
+    <div class="di" id="di" onclick="diToggle(event)">
+      <div class="di-pill">
+        <div class="di-dot"></div>
+        <span class="di-title">Time Left</span>
+        <span class="di-clock" id="diClk">—</span>
+        <span class="di-hint">tap</span>
+      </div>
+      <div class="di-body">
+        <div class="di-top">
+          <div class="di-logo"><div class="di-dot-lg"></div>Time Left</div>
+          <button class="di-x" onclick="diClose(event)">✕</button>
+        </div>
+        <div class="di-fulltime" id="diFullTime">—</div>
+        <div class="di-actions">
+          <button class="di-btn" onclick="doMinAll(event)"><span class="ic">▼</span>Minimize All</button>
+          <button class="di-btn" onclick="doMaxAll(event)"><span class="ic">▲</span>Expand All</button>
+          <button class="di-btn-wide di-btn" onclick="openModal(event)"><span class="ic">＋</span>Add Custom Countdown</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Builder Card -->
+<div class="builder-card">
+  <div class="builder-avatar">N</div>
+  <div class="builder-text">
+    <div class="builder-name">Nikshep Doggalli</div>
+    <div class="builder-role">Builder · 2025</div>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="page">
+  <div class="bento" id="bento">
+
+    <!-- HOUR -->
+    <div class="card s4" id="card_hour" style="--c1:#ff5f57;--c2:#ff9580">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('hour')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('hour')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('hour')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">⏱</div>This Hour</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_hour">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_hour">—</div>
+        </div>
+        <div class="card-quote loading" id="q_hour">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_hour"></div></div>
+      </div>
+    </div>
+
+    <!-- DAY -->
+    <div class="card s4" id="card_day" style="--c1:#ff9500;--c2:#ffd60a">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('day')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('day')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('day')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">☀️</div>Today</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_day">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_day">—</div>
+        </div>
+        <div class="card-quote loading" id="q_day">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_day"></div></div>
+      </div>
+    </div>
+
+    <!-- WEEK -->
+    <div class="card s4" id="card_week" style="--c1:#30d158;--c2:#76e29a">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('week')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('week')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('week')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">📅</div>This Week</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_week">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_week">—</div>
+        </div>
+        <div class="card-quote loading" id="q_week">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_week"></div></div>
+      </div>
+    </div>
+
+    <!-- MONTH -->
+    <div class="card s6" id="card_month" style="--c1:#0a84ff;--c2:#5eb0ff">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('month')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('month')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('month')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">🌙</div>This Month</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_month">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_month">—</div>
+        </div>
+        <div class="card-quote loading" id="q_month">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_month"></div></div>
+      </div>
+    </div>
+
+    <!-- YEAR -->
+    <div class="card s6" id="card_year" style="--c1:#d4a853;--c2:#f0c97e">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('year')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('year')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('year')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">✦</div>This Year</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_year">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_year">—</div>
+        </div>
+        <div class="card-pills" id="pills_year"></div>
+        <div class="card-quote loading" id="q_year">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_year"></div></div>
+      </div>
+    </div>
+
+    <!-- DECADE -->
+    <div class="card s12" id="card_decade" style="--c1:#bf5af2;--c2:#da8fff">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('decade')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('decade')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('decade')"></button>
+      </div>
+      <div class="card-inner">
+        <div class="card-label"><div class="card-icon">🌊</div>This Decade</div>
+        <div class="card-body">
+          <div class="pct-row"><span class="pct-num" id="num_decade">—</span><span class="pct-sym">%</span></div>
+          <div class="pct-sub">remaining</div>
+          <div class="card-detail" id="det_decade">—</div>
+        </div>
+        <div class="dgrid" id="dgrid"></div>
+        <div class="card-quote loading" id="q_decade">Fetching wisdom…</div>
+        <div class="card-track"><div class="card-bar" id="bar_decade"></div></div>
+      </div>
+    </div>
+
+    <!-- CUSTOM -->
+    <div id="custom-zone" style="display:contents"></div>
+
+    <!-- ORIGIN -->
+    <div class="origin-card" id="card_footer">
+      <div class="mac">
+        <button class="mac-btn mb-del" data-s="✕" onclick="delCard('footer')"></button>
+        <button class="mac-btn mb-min" data-s="−" onclick="minCard('footer')"></button>
+        <button class="mac-btn mb-exp" data-s="+" onclick="expCard('footer')"></button>
+      </div>
+      <div class="origin-inner">
+        <div class="origin-left">
+          <div class="origin-label"><div class="origin-icon">✦</div>Why This Exists</div>
+          <div class="origin-headline">Nikshep<br>Doggalli<br>had an idea.</div>
+          <div class="origin-sub">Origin · 2025</div>
+          <div class="origin-detail">
+            What if you could <em>feel</em> time passing,<br>not just track it?<br><br>
+            Not alarms. Not stress.<br>Just quiet, honest awareness<br>that every hour is finite.
+          </div>
+        </div>
+        <div class="origin-right">
+          <div class="origin-label"><div class="origin-icon">🌊</div>The Intention</div>
+          <div class="origin-story">
+            Most apps make time feel abstract.<br>Numbers you swipe away.<br><br>
+            <strong>This is different.</strong><br><br>
+            Each card breathes with the clock. You see the percentage of your hour, your day, your year slipping past — and it changes how you spend the next moment.<br><br>
+            That awareness, Nikshep believed, is the most powerful motivator there is. Not guilt. Not urgency. Just <strong>presence</strong>.
+          </div>
+        </div>
+      </div>
+      <div class="origin-divider"></div>
+      <div class="origin-credits-row">
+        <span>Built with intention · timeleft</span>
+        <span class="origin-badge">✦ TIMELEFT</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="backdrop" id="backdrop" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title">Add a Countdown</div>
+    <div class="modal-sub">Track something that matters to you.</div>
+    <div class="fg"><label class="fl">Label</label>
+      <input class="fi" id="i_label" type="text" placeholder="Birthday, Launch Day, Vacation…" maxlength="28"></div>
+    <div class="fg"><label class="fl">Target Date & Time</label>
+      <input class="fi" id="i_date" type="datetime-local"></div>
+    <div class="fg"><label class="fl">Icon</label>
+      <input class="fi" id="i_icon" type="text" placeholder="🎂  ✈️  🏁  🎓  🚀" maxlength="4"></div>
+    <div class="fg"><label class="fl">Color</label>
+      <div class="swatches" id="sw_row"></div></div>
+    <div class="modal-acts">
+      <button class="btn-p" onclick="addCustom()">Add to Dashboard</button>
+      <button class="btn-g" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  ONBOARDING
+// ════════════════════════════════════════
+const OB_SLIDES = [
+  {
+    color: '#d4a853',
+    tag: '01 · A Question',
+    headline: 'Where does your\ntime actually go?',
+    body: 'Most of us track tasks. Deadlines. Events. But we never stop to feel the hours slipping past. Time moves whether we watch it or not.',
+  },
+  {
+    color: '#ff5f57',
+    tag: '02 · The Problem',
+    headline: 'An hour is\n3,600 seconds.',
+    body: 'A day is 86,400. A year — 31,536,000. Each one finite. Each one unrepeatable. Most slip by unnoticed, felt only in hindsight.',
+  },
+  {
+    color: '#30d158',
+    tag: '03 · The Origin',
+    headline: 'Nikshep Doggalli\nhad an idea.',
+    body: 'What if instead of managing time, you could simply see it — in real time — as a quiet percentage of something precious ticking away?',
+  },
+  {
+    color: '#0a84ff',
+    tag: '04 · The Belief',
+    headline: 'Awareness is\nthe first act.',
+    body: 'Not guilt. Not pressure. Just the gentle knowledge that this hour — right now — is a fraction of your day, your year, your decade. Make it count.',
+  },
+  {
+    color: '#bf5af2',
+    tag: '05 · Welcome',
+    headline: 'This is\nTime Left.',
+    body: 'Your personal time mirror. Every card shows what remains — live, honest, beautiful. The clock is already running.',
+    isLast: true,
+  },
+];
+
+let obStep = 0;
+let typingLocked = true;
+let typeTimers = [];
+
+function obClearTimers() {
+  typeTimers.forEach(t => clearTimeout(t));
+  typeTimers = [];
+}
+
+function obRender(stepIdx) {
+  const s = OB_SLIDES[stepIdx];
+  obClearTimers();
+  typingLocked = true;
+
+  // Update dots
+  OB_SLIDES.forEach((_, i) => {
+    const dot = document.getElementById('od' + i);
+    dot.className = 'ob-dot' + (i === stepIdx ? ' active' : i < stepIdx ? ' done' : '');
+  });
+
+  // Update card color
+  document.getElementById('ob-card').style.setProperty('--oc', s.color);
+
+  // Tag (instant)
+  document.getElementById('ob-tag').textContent = s.tag;
+  document.getElementById('ob-step').textContent = `${stepIdx + 1} of ${OB_SLIDES.length}`;
+
+  // Hide next button
+  const btn = document.getElementById('ob-next');
+  btn.className = 'ob-next' + (s.isLast ? ' last' : '');
+  btn.textContent = s.isLast ? 'Enter Time Left →' : 'Continue →';
+  btn.classList.remove('ready');
+
+  // Clear
+  document.getElementById('ob-headline').innerHTML = '';
+  document.getElementById('ob-body').innerHTML = '';
+
+  // Type headline then body
+  typeText('ob-headline', s.headline, 28, () => {
+    typeText('ob-body', s.body, 14, () => {
+      typingLocked = false;
+      document.getElementById('ob-next').classList.add('ready');
+    }, true);
+  }, false);
+}
+
+function typeText(elId, text, speed, onDone, showCursor) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  let i = 0;
+  const lines = text.split('\n');
+  let flat = '';
+  lines.forEach((l, li) => { flat += l + (li < lines.length - 1 ? '\n' : ''); });
+
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  el.appendChild(cursor);
+
+  function next() {
+    if (i >= flat.length) {
+      cursor.remove();
+      if (onDone) onDone();
+      return;
+    }
+    const ch = flat[i];
+    if (ch === '\n') {
+      cursor.insertAdjacentHTML('beforebegin', '<br>');
+    } else {
+      const span = document.createElement('span');
+      span.textContent = ch;
+      el.insertBefore(span, cursor);
+    }
+    i++;
+    typeTimers.push(setTimeout(next, speed + Math.random() * speed * 0.4));
+  }
+  typeTimers.push(setTimeout(next, 40));
+}
+
+function obNext() {
+  if (typingLocked) return;
+  obStep++;
+  if (obStep >= OB_SLIDES.length) {
+    // Done — hide onboarding
+    const ob = document.getElementById('onboarding');
+    ob.classList.add('fade-out');
+    setTimeout(() => { ob.style.display = 'none'; }, 600);
+    return;
+  }
+  obRender(obStep);
+}
+
+// Start onboarding
+obRender(0);
+
+// ════════════════════════════════════════
+//  DYNAMIC ISLAND
+// ════════════════════════════════════════
+let diIsOpen = false;
+function diToggle(e) { if (!diIsOpen) { diIsOpen = true; document.getElementById('di').classList.add('open'); } }
+function diClose(e) { e && e.stopPropagation(); diIsOpen = false; document.getElementById('di').classList.remove('open'); }
+function doMinAll(e) { e && e.stopPropagation(); diClose(); document.querySelectorAll('.card,.origin-card').forEach(c => c.classList.add('min')); }
+function doMaxAll(e) { e && e.stopPropagation(); diClose(); document.querySelectorAll('.card,.origin-card').forEach(c => c.classList.remove('min')); }
+function openModal(e) {
+  e && e.stopPropagation(); diClose();
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  document.getElementById('i_date').value = d.toISOString().slice(0, 16);
+  document.getElementById('backdrop').classList.add('open');
+}
+function closeModal() { document.getElementById('backdrop').classList.remove('open'); }
+
+// ════════════════════════════════════════
+//  CARD CONTROLS
+// ════════════════════════════════════════
+function delCard(id) {
+  const el = document.getElementById('card_' + id);
+  if (!el) return;
+  el.style.opacity = '0'; el.style.transform = 'scale(0.9)';
+  setTimeout(() => el.remove(), 300);
+  if (id.startsWith('c')) {
+    const num = parseInt(id.slice(1));
+    customs = customs.filter(c => c.id !== num);
+    try { localStorage.setItem('tl_customs', JSON.stringify(customs)); } catch(e){}
+  }
+}
+function minCard(id) { const el = document.getElementById('card_' + id); if (el) el.classList.add('min'); }
+function expCard(id) { const el = document.getElementById('card_' + id); if (el) el.classList.remove('min'); }
+
+// ════════════════════════════════════════
+//  CUSTOM CARDS
+// ════════════════════════════════════════
+const THEMES = [
+  {name:'gold',c1:'#d4a853',c2:'#f0c97e'},
+  {name:'coral',c1:'#ff5f57',c2:'#ff9580'},
+  {name:'amber',c1:'#ff9500',c2:'#ffd60a'},
+  {name:'mint',c1:'#30d158',c2:'#76e29a'},
+  {name:'blue',c1:'#0a84ff',c2:'#5eb0ff'},
+  {name:'purple',c1:'#bf5af2',c2:'#da8fff'},
+  {name:'rose',c1:'#ff375f',c2:'#ff8fa3'},
+  {name:'teal',c1:'#00c7be',c2:'#5ac8fa'},
+];
+let selTheme = 'gold';
+let customs = [];
+try { customs = JSON.parse(localStorage.getItem('tl_customs') || '[]'); } catch(e){}
+
+const swRow = document.getElementById('sw_row');
+THEMES.forEach(t => {
+  const s = document.createElement('div');
+  s.className = 'sw' + (t.name === selTheme ? ' sel' : '');
+  s.style.background = `linear-gradient(135deg,${t.c1},${t.c2})`;
+  s.onclick = () => { selTheme = t.name; document.querySelectorAll('.sw').forEach(x => x.classList.remove('sel')); s.classList.add('sel'); };
+  swRow.appendChild(s);
+});
+
+function addCustom() {
+  const label = document.getElementById('i_label').value.trim() || 'Timer';
+  const dateStr = document.getElementById('i_date').value;
+  const icon = document.getElementById('i_icon').value.trim() || '⏳';
+  if (!dateStr) { document.getElementById('i_date').focus(); return; }
+  const th = THEMES.find(t => t.name === selTheme) || THEMES[0];
+  const c = { id: Date.now(), label, target: dateStr, icon, c1: th.c1, c2: th.c2 };
+  customs.push(c);
+  try { localStorage.setItem('tl_customs', JSON.stringify(customs)); } catch(e){}
+  renderCustom(c);
+  document.getElementById('i_label').value = '';
+  document.getElementById('i_icon').value = '';
+  closeModal();
+}
+
+function renderCustom(c) {
+  const cid = 'c' + c.id;
+  const el = document.createElement('div');
+  el.className = 'card s6';
+  el.id = 'card_' + cid;
+  el.style.cssText = `--c1:${c.c1};--c2:${c.c2}`;
+  el.innerHTML = `
+    <div class="mac">
+      <button class="mac-btn mb-del" data-s="✕" onclick="delCard('${cid}')"></button>
+      <button class="mac-btn mb-min" data-s="−" onclick="minCard('${cid}')"></button>
+      <button class="mac-btn mb-exp" data-s="+" onclick="expCard('${cid}')"></button>
+    </div>
+    <div class="card-inner">
+      <div class="card-label"><div class="card-icon">${c.icon}</div>${c.label}</div>
+      <div class="card-body">
+        <div class="pct-row"><span class="pct-num" id="num_${cid}">—</span><span class="pct-sym">%</span></div>
+        <div class="pct-sub">remaining</div>
+        <div class="card-detail" id="det_${cid}">—</div>
+      </div>
+      <div class="card-quote loading" id="q_${cid}">Fetching wisdom…</div>
+      <div class="card-track"><div class="card-bar" id="bar_${cid}"></div></div>
+    </div>`;
+  document.getElementById('custom-zone').appendChild(el);
+  fetchQuoteFor('c' + c.id, c.label + ' countdown timer');
+}
+customs.forEach(c => renderCustom(c));
+
+// ════════════════════════════════════════
+//  AI QUOTES — OpenRouter
+// ════════════════════════════════════════
+const OR_KEY = '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';
+const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+const QUOTE_CONTEXTS = {
+  hour:   'an hour — the preciousness of 60 minutes',
+  day:    'a single day — making the most of today',
+  week:   'a week — the rhythm of seven days',
+  month:  'a month — the passage of thirty days',
+  year:   'a year — how we spend our years',
+  decade: 'a decade — the long arc of ten years',
+};
+
+async function fetchQuoteFor(cardId, context) {
+  const el = document.getElementById('q_' + cardId);
+  if (!el) return;
+  el.className = 'card-quote loading';
+  el.textContent = 'Fetching wisdom…';
+
+  try {
+    const res = await fetch(OR_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OR_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://timeleft.app',
+        'X-Title': 'Time Left',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        max_tokens: 80,
+        messages: [{
+          role: 'user',
+          content: `Give me ONE short, profound, memorable quote (max 15 words) about ${context}. 
+Reply with ONLY this exact format — nothing else, no preamble:
+"The quote text here" — Author Name
+
+Pick a real, well-known author. Be varied and surprising each call.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const raw = data?.choices?.[0]?.message?.content?.trim() || '';
+
+    // Parse "quote" — Author
+    const match = raw.match(/^[""](.+?)[""][\s\—\-–]+(.+)$/);
+    if (match) {
+      el.className = 'card-quote';
+      el.innerHTML = `"${match[1]}"<span class="q-attr">— ${match[2]}</span>`;
+    } else {
+      el.className = 'card-quote';
+      el.textContent = raw || 'Time is the fire in which we burn.';
+    }
+  } catch(err) {
+    el.className = 'card-quote';
+    el.innerHTML = '"The present moment is the only moment available to us."<span class="q-attr">— Thich Nhat Hanh</span>';
+  }
+}
+
+function fetchAllQuotes() {
+  Object.entries(QUOTE_CONTEXTS).forEach(([id, ctx]) => fetchQuoteFor(id, ctx));
+}
+
+// Fetch on load, then every 60 seconds
+fetchAllQuotes();
+setInterval(fetchAllQuotes, 60000);
+
+// ════════════════════════════════════════
+//  TIME TICK
+// ════════════════════════════════════════
+const p2 = n => String(Math.floor(n)).padStart(2, '0');
+const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const dInM = (y, m) => new Date(y, m + 1, 0).getDate();
+const WD = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MO = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function fmt(sec) {
+  if (sec <= 0) return "Time's up 🎉";
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600),
+        m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+  if (d > 0) return `${d}d ${p2(h)}h ${p2(m)}m`;
+  if (h > 0) return `${p2(h)}h ${p2(m)}m ${p2(s)}s`;
+  return `${p2(m)}m ${p2(s)}s`;
+}
+
+function setC(id, pct, det) {
+  const n = document.getElementById('num_' + id);
+  const b = document.getElementById('bar_' + id);
+  const d = document.getElementById('det_' + id);
+  if (!n || !b || !d) return;
+  const v = Math.max(0, Math.min(100, pct));
+  n.textContent = v.toFixed(1);
+  b.style.width = v + '%';
+  d.textContent = det;
+}
+
+function tick() {
+  const now = new Date();
+  const ms = now.getTime();
+  const y = now.getFullYear(), mo = now.getMonth(), d = now.getDate();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  const ts = `${p2(h)}:${p2(m)}:${p2(s)}`;
+  const fs = `${WD[now.getDay()]}, ${MO[mo]} ${d}, ${y}  ·  ${ts}`;
+
+  document.getElementById('diClk').textContent = ts;
+  document.getElementById('diFullTime').textContent = fs;
+
+  // Hour
+  const soh = m * 60 + s, slh = 3600 - soh;
+  setC('hour', (slh / 3600) * 100, `${fmt(slh)} left  ·  ${m}m elapsed`);
+
+  // Day
+  const sod = h * 3600 + m * 60 + s, sld = 86400 - sod;
+  setC('day', (sld / 86400) * 100, `${fmt(sld)} left  ·  ${h}h elapsed`);
+
+  // Week (Mon–Sun)
+  const dow = (now.getDay() + 6) % 7;
+  const sow = dow * 86400 + sod, slw = 604800 - sow;
+  setC('week', (slw / 604800) * 100, `${fmt(slw)} left  ·  Day ${dow + 1} of 7`);
+
+  // Month
+  const dim = dInM(y, mo), sim = dim * 86400;
+  const som = (d - 1) * 86400 + sod, slm = sim - som;
+  setC('month', (slm / sim) * 100, `${fmt(slm)} left  ·  Day ${d} of ${dim}`);
+
+  // Year
+  const diy = isLeap(y) ? 366 : 365, siy = diy * 86400;
+  const soy = (ms - new Date(y, 0, 1).getTime()) / 1000, sly = siy - soy;
+  const doy = Math.floor(soy / 86400) + 1;
+  setC('year', (sly / siy) * 100, `${Math.floor(sly / 86400)}d left  ·  Day ${doy} of ${diy}`);
+  const yp = document.getElementById('pills_year');
+  if (yp) yp.innerHTML =
+    `<div class="pill"><b>${Math.floor(sly / 604800)}</b> wks</div>
+     <div class="pill"><b>${Math.floor(sly / 3600).toLocaleString()}</b> hrs</div>
+     <div class="pill">Day <b>${doy}</b> / ${diy}</div>`;
+
+  // Decade
+  const ds = Math.floor(y / 10) * 10, de = ds + 10;
+  const msDs = new Date(ds, 0, 1).getTime(), msDe = new Date(de, 0, 1).getTime();
+  const dLeft = msDe - ms, dTot = msDe - msDs;
+  setC('decade', (dLeft / dTot) * 100, `${Math.floor(dLeft / 86400000)}d left  ·  ${ds}s decade`);
+  const dg = document.getElementById('dgrid');
+  if (dg) {
+    dg.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      const yS = new Date(ds + i, 0, 1).getTime(), yE = new Date(ds + i + 1, 0, 1).getTime();
+      const bk = document.createElement('div'); bk.className = 'd-blk'; bk.title = `${ds + i}`;
+      const fi = document.createElement('div'); fi.className = 'd-fill';
+      fi.style.width = (Math.max(0, Math.min(1, ms >= yE ? 1 : ms < yS ? 0 : (ms - yS) / (yE - yS))) * 100) + '%';
+      bk.appendChild(fi); dg.appendChild(bk);
+    }
+  }
+
+  // Custom
+  customs.forEach(c => {
+    const cid = 'c' + c.id;
+    const target = new Date(c.target).getTime();
+    const total = target - c.id, left = target - ms;
+    const pct = total > 0 ? Math.max(0, Math.min(100, (left / total) * 100)) : 0;
+    const n = document.getElementById('num_' + cid);
+    const b = document.getElementById('bar_' + cid);
+    const dt = document.getElementById('det_' + cid);
+    if (!n || !b || !dt) return;
+    n.textContent = pct.toFixed(1);
+    b.style.width = pct + '%';
+    dt.textContent = left > 0 ? fmt(left / 1000) : "Time's up 🎉";
+  });
+}
+
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
